@@ -60,6 +60,17 @@ logger = logging.getLogger(__name__)
 
 logger.setLevel(logging.INFO)
 
+
+# import debugpy
+
+# # Запускаем отладчик на порту 5678
+# debugpy.listen(5678)
+# print("Ожидание подключения отладчика...")
+
+# # Ожидаем подключения VS Code
+# debugpy.wait_for_client()
+# print("Отладчик подключен!")
+
 def make_deterministic(seed=0, ignore_if_cuda=False):
     # if not (ignore_if_cuda and torch.cuda.device_count() > 0):
     #     torch.use_deterministic_algorithms(True)
@@ -246,6 +257,10 @@ def sample_one(sampler, i_des=0, simple_logging=False):
     px0_xyz_stack = []
     seq_stack = []
 
+    match_idx_stack = []
+    gp_idx_stack = []
+    rmsd_stack = []
+
     rfo = None
     extra = {
         'rfo_uncond': None,
@@ -310,6 +325,23 @@ def sample_one(sampler, i_des=0, simple_logging=False):
         seq_stack.append(seq_t)
         for k, v in extra['traj'].items():
             traj_stack[k].append(v)
+
+
+        is_diffused = sampler.is_diffused
+        match_xyz = px0
+        match_idx, gp_idx, gp_contig_mappings = match_guideposts_and_generate_mappings(indep, is_diffused, contig_map, match_xyz)
+
+
+        bb_xyz = px0[match_idx]
+        gp_xyz = px0[gp_idx]
+        diff = bb_xyz - gp_xyz
+        rmsd = diff.pow(2).sum(-1).sum(-1).sqrt() # rmsd for each matched residue
+        match_idx_stack.append(match_idx)
+        gp_idx_stack.append(gp_idx)
+        rmsd_stack.append(rmsd)
+
+
+
 
     if t_step_input == 0:
         # Null-case: no diffusion performed.
@@ -399,7 +431,8 @@ def sample_one(sampler, i_des=0, simple_logging=False):
                 xyz_stack_new.append(indep_deatomized.xyz)
             traj_stack[k] = torch.stack(xyz_stack_new)
 
-    return indep, contig_map, atomizer, t_step_input, denoised_xyz_stack, px0_xyz_stack, seq_stack, is_diffused, raw, traj_stack, ts
+
+    return indep, contig_map, atomizer, t_step_input, denoised_xyz_stack, px0_xyz_stack, seq_stack, is_diffused, raw, traj_stack, ts, match_idx_stack, gp_idx_stack, rmsd_stack
 
 def add_implicit_side_chain_atoms(seq, act_on_residue, xyz, xyz_with_sc):
     '''
@@ -529,7 +562,7 @@ def match_guideposts_and_generate_mappings(indep, is_diffused, contig_map, denoi
 
     return match_idx, gp_idx, gp_contig_mappings
 
-def save_outputs(sampler, out_prefix, indep, contig_map, atomizer, t_step_input, denoised_xyz_stack, px0_xyz_stack, seq_stack, is_diffused_in, raw, traj_stack, ts):
+def save_outputs(sampler, out_prefix, indep, contig_map, atomizer, t_step_input, denoised_xyz_stack, px0_xyz_stack, seq_stack, is_diffused_in, raw, traj_stack, ts, match_idx_stack, gp_idx_stack, rmsd_stack):
     log = logging.getLogger(__name__)
 
     # Make the output folder
@@ -709,6 +742,12 @@ def save_outputs(sampler, out_prefix, indep, contig_map, atomizer, t_step_input,
             motif_deatomized = atomize.convert_atomized_mask(atomizer, ~sampler.is_diffused)
             trb['motif'] = motif_deatomized
         trb['idealization_rmsd'] = idealization_rmsd
+
+        if True: # add config проверку
+            trb['match_idx_stack'] = match_idx_stack
+            trb['gp_idx_stack'] = gp_idx_stack
+            trb['rmsd_stack'] = rmsd_stack
+
         if sampler._conf.inference.contig_as_guidepost:
             # Store the literal location of the guide post residues
             for k in ['con_hal_pdb_idx', 'con_hal_idx0', 'sampled_mask']:
