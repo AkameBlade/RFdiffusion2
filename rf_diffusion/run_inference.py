@@ -382,7 +382,6 @@ def sample_one(sampler, i_des=0, simple_logging=False):
         # except Exception as _e:
         #     pass
 
-        indep_xyz_stack.append(indep.xyz)
 
 
     if t_step_input == 0:
