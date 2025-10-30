@@ -3,9 +3,9 @@ defaults:
 
 inference:
   output_prefix: debug/gaa
-  ckpt_path: /home/rohith/rf_diffusion/models/BFF_4.pt
+  ckpt_path: /home/domain/ipermyakov/progs/RFdiffusion2/rf_diffusion/model_weights/RFD_173.pt
   model_runner: NRBStyleSelfCond
-  input_pdb: 'benchmark/input/gaa.pdb'
+  input_pdb: '/home/domain/ipermyakov/progs/RFdiffusion2/rf_diffusion/benchmark/input/gaa.pdb'
   ligand: 'LG1'
 
 contigmap:

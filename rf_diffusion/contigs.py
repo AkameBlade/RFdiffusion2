@@ -35,6 +35,7 @@ class ContigMap():
             contig_atoms=None,
             inpaint_seq=None,
             inpaint_str=None,
+            substrate_mask=None,
             length=None,
             has_termini=None,
             ref_idx=None,
@@ -97,6 +98,7 @@ class ContigMap():
         self.idx_rf=idx_rf
         self.inpaint_seq = ','.join(inpaint_seq).split(",") if inpaint_seq is not None else None
         self.inpaint_str = ','.join(inpaint_str).split(",") if inpaint_str is not None else None
+        self.substrate_mask = substrate_mask
         self.inpaint_seq_tensor=inpaint_seq_tensor
         self.inpaint_str_tensor=inpaint_str_tensor
         self.parsed_pdb = parsed_pdb
@@ -145,6 +147,12 @@ class ContigMap():
                 self.inpaint_str = np.array([bool(i != ('_','_')) for i in self.ref])
         else:
             self.inpaint_str = self.inpaint_str_tensor
+
+        # Process substrate_mask
+        if self.substrate_mask is not None:
+            self.substrate_mask = self.res_list_to_mask(self.substrate_mask)
+        else:
+            self.substrate_mask = None
         #get 0-indexed input/output (for trb file)
         self.ref_idx0,self.hal_idx0, self.ref_idx0_inpaint, self.hal_idx0_inpaint=self.get_idx0()
         self.con_ref_pdb_idx=[i for i in self.ref if i != ('_','_')]
@@ -292,6 +300,7 @@ class ContigMap():
             con_hal_idx0=np.array(self.hal_idx0_inpaint),
             inpaint_str=self.inpaint_str,
             inpaint_seq=self.inpaint_seq,
+            substrate_mask=self.substrate_mask,
             sampled_mask=self.sampled_mask,
             mask_1d=self.mask_1d,
             atomize_indices2atomname=self.atomize_indices2atomname,

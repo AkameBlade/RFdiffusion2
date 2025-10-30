@@ -15,6 +15,7 @@ See https://hydra.cc/docs/advanced/hydra-command-line-flags/ for more options.
 
 """
 import os
+import sys
 
 # # Hack for autobenching
 # PKG_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -48,6 +49,7 @@ from rf_diffusion.dev import idealize_backbone
 from rf_diffusion.idealize import idealize_pose
 import rf_diffusion.features as features
 from rf_diffusion.import_pyrosetta import prepare_pyrosetta
+from rf_diffusion.align_utils import compute_alignment_params, apply_transform_fractional
 from rf_diffusion import silent_files
 import rf_diffusion.inference.utils as iu
 import tqdm
@@ -61,15 +63,19 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-# import debugpy
-
-# # Запускаем отладчик на порту 5678
-# debugpy.listen(5678)
-# print("Ожидание подключения отладчика...")
-
-# # Ожидаем подключения VS Code
-# debugpy.wait_for_client()
-# print("Отладчик подключен!")
+# Enable debug mode via --debug flag and start debugpy if requested
+DEBUG = any(arg == '--debug' or arg.startswith('--debug=') for arg in sys.argv)
+if DEBUG:
+    # remove --debug from argv so Hydra/argparse don't complain
+    sys.argv = [a for a in sys.argv if not (a == '--debug' or a.startswith('--debug='))]
+    try:
+        import debugpy
+        debugpy.listen(5678)
+        print("Ожидание подключения отладчика на 5678...")
+        debugpy.wait_for_client()
+        print("Отладчик подключен!")
+    except Exception as _e:
+        pass
 
 def make_deterministic(seed=0, ignore_if_cuda=False):
     # if not (ignore_if_cuda and torch.cuda.device_count() > 0):
@@ -327,20 +333,56 @@ def sample_one(sampler, i_des=0, simple_logging=False):
             traj_stack[k].append(v)
 
 
+
+        # for logging catal motif rmsd between math_idx and gp_idx
         is_diffused = sampler.is_diffused
         match_xyz = px0
+        
+        # Match guideposts and generate mappings
+        match_start = time.time()
         match_idx, gp_idx, gp_contig_mappings = match_guideposts_and_generate_mappings(indep, is_diffused, contig_map, match_xyz)
-
+        match_time = time.time() - match_start
+        log.info(f"  - Guidepost matching: {match_time:.4f}s ({len(match_idx)} matches)")
 
         bb_xyz = px0[match_idx]
         gp_xyz = px0[gp_idx]
         diff = bb_xyz - gp_xyz
-        rmsd = diff.pow(2).sum(-1).sum(-1).sqrt() # rmsd for each matched residue
+        rmsd = diff.pow(2).sum(-1).mean(-1).sqrt() # rmsd for each matched residue
         match_idx_stack.append(match_idx)
         gp_idx_stack.append(gp_idx)
         rmsd_stack.append(rmsd)
 
+        # Minimal call to external alignment helper
+        align_conf = getattr(sampler._conf.inference, 'guidepost_align', None)
+        params = compute_alignment_params(px0, indep, contig_map, match_idx, gp_idx, it, len(ts), align_conf)
+        if params is not None:
+            R, tt, alpha, move_mask, P_mean, Q_mean = params
+            n_moved = move_mask.sum().item()
+            log.info(f"Applying alignment transform at step {it+1}/{len(ts)} (t={t}): {n_moved} residues, alpha={alpha:.3f}")
+            
+            # Transform indep.xyz
+            indep_start = time.time()
+            indep.xyz = apply_transform_fractional(indep.xyz, move_mask, R, tt, alpha, P_mean, Q_mean, use_quaternions=True)
+            indep_time = time.time() - indep_start
+            log.info(f"  - indep.xyz transform: {indep_time:.4f}s")
+            
+            # Transform px0
+            px0_start = time.time()
+            px0 = apply_transform_fractional(px0, move_mask, R, tt, alpha, P_mean, Q_mean, use_quaternions=True)
+            px0_time = time.time() - px0_start
+            log.info(f"  - px0 transform: {px0_time:.4f}s")
+            
+            total_align_time = indep_time + px0_time
+            log.info(f"  - Total alignment time: {total_align_time:.4f}s")
+        # Log centers of mass for debugging
+        # try:
+        #     com_px0 = torch.nanmean(px0.reshape(-1, 3), dim=0)
+        #     com_indep = torch.nanmean(indep.xyz.reshape(-1, 3), dim=0)
+        #     log.info(f'COM px0: {com_px0.tolist()}, COM indep: {com_indep.tolist()}')
+        # except Exception as _e:
+        #     pass
 
+        indep_xyz_stack.append(indep.xyz)
 
 
     if t_step_input == 0:
@@ -369,14 +411,17 @@ def sample_one(sampler, i_des=0, simple_logging=False):
         xyz=denoised_xyz_stack,
         xyz_with_sc=sampler.indep_orig.xyz,
     )
-    px0_xyz_stack_filler = add_implicit_side_chain_atoms(
-        seq=indep.seq,
-        act_on_residue=~sampler.is_diffused,
-        xyz=px0_xyz_stack[..., :ChemData().NHEAVY, :],
-        # xyz_with_sc=sampler.indep_orig.xyz,
-        xyz_with_sc=sampler.indep_orig.xyz[..., :ChemData().NHEAVY, :],
-    )
-    px0_xyz_stack[..., :ChemData().NHEAVY, :] = px0_xyz_stack_filler
+    
+    # TODO: Убрано, чтобы не подставлял ненужное. Как-то потом через флаг отключать
+
+    # px0_xyz_stack_filler = add_implicit_side_chain_atoms(
+    #     seq=indep.seq,
+    #     act_on_residue=~sampler.is_diffused,
+    #     xyz=px0_xyz_stack[..., :ChemData().NHEAVY, :],
+    #     # xyz_with_sc=sampler.indep_orig.xyz,
+    #     xyz_with_sc=sampler.indep_orig.xyz[..., :ChemData().NHEAVY, :],
+    # )
+    # px0_xyz_stack[..., :ChemData().NHEAVY, :] = px0_xyz_stack_filler
 
     for k, v in traj_stack.items():
         traj_stack[k] = add_implicit_side_chain_atoms(
@@ -432,7 +477,7 @@ def sample_one(sampler, i_des=0, simple_logging=False):
             traj_stack[k] = torch.stack(xyz_stack_new)
 
 
-    return indep, contig_map, atomizer, t_step_input, denoised_xyz_stack, px0_xyz_stack, seq_stack, is_diffused, raw, traj_stack, ts, match_idx_stack, gp_idx_stack, rmsd_stack
+    return indep, contig_map, atomizer, t_step_input, denoised_xyz_stack, px0_xyz_stack, seq_stack, is_diffused, raw, traj_stack, ts, match_idx_stack, gp_idx_stack, rmsd_stack, indep_xyz_stack
 
 def add_implicit_side_chain_atoms(seq, act_on_residue, xyz, xyz_with_sc):
     '''
@@ -562,7 +607,7 @@ def match_guideposts_and_generate_mappings(indep, is_diffused, contig_map, denoi
 
     return match_idx, gp_idx, gp_contig_mappings
 
-def save_outputs(sampler, out_prefix, indep, contig_map, atomizer, t_step_input, denoised_xyz_stack, px0_xyz_stack, seq_stack, is_diffused_in, raw, traj_stack, ts, match_idx_stack, gp_idx_stack, rmsd_stack):
+def save_outputs(sampler, out_prefix, indep, contig_map, atomizer, t_step_input, denoised_xyz_stack, px0_xyz_stack, seq_stack, is_diffused_in, raw, traj_stack, ts, match_idx_stack, gp_idx_stack, rmsd_stack, indep_xyz_stack):
     log = logging.getLogger(__name__)
 
     # Make the output folder

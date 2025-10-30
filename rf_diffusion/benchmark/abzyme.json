@@ -1,0 +1,7 @@
+{
+    "test_abz":   "inference.input_pdb=test_in.pdb contigmap.contigs=[\\'A1-25,8,A34-52,8,A61-101,25,A127-138_B139-161,17,B179-193,7,B202-232,D111-111,D113-113,E177-177,E238-238,11,B244-254_C254-265\\'] inference.contig_as_guidepost=True inference.only_guidepost_positions=\\'D111,D113,E177,E238\\' contigmap.has_termini=[True,True,True] contigmap.contig_atoms=\"'{\\'E238\\':\\'OD2,OD1,CG\\'}'\"",
+    "test_abz_str":   "inference.input_pdb=test_in_ori_frame.pdb contigmap.contigs=[\\'A1-25,15,A34-52,15,A61-101,15,A127-138_B139-161,15,B179-193,15,B202-232,D111-111,D113-113,E177-177,E238-238,15,B244-254_C254-265\\'] contigmap.inpaint_str=[\\'A1-25,A34-52,A61-101,A127-138,B139-161,B179-193,B202-232,B244-254\\'] inference.contig_as_guidepost=True inference.only_guidepost_positions=\\'D111,D113,E177,E238\\' contigmap.has_termini=[True,True,True] contigmap.contig_atoms=\"'{\\'E238\\':\\'OD2,OD1,CG\\'}'\"",
+    "test_ori":   "inference.input_pdb=test_in_ori_frame.pdb contigmap.contigs=[\\'130_D111-111,D113-113,E177-177,E238-238,130_C254-265\\'] inference.contig_as_guidepost=True inference.only_guidepost_positions=\\'D111,D113,E177,E238\\' contigmap.has_termini=[True,True,True] contigmap.contig_atoms=\"'{\\'E238\\':\\'OD2,OD1,CG\\'}'\"",
+    "test_res":   "inference.input_pdb=test_in_ori_frame.pdb contigmap.contigs=[\\'130_D111-111,D113-113,E177-177,E238-238,130_C254-265\\'] inference.contig_as_guidepost=True inference.only_guidepost_positions=\\'D111,D113,E177,E238\\' contigmap.has_termini=[True,True,True]"
+    
+}

@@ -1,0 +1,56 @@
+# Base inference Configuration.
+defaults:
+  - base
+
+guidepost_bonds: True
+
+inference:
+  guidepost_align:
+    active: True
+    schedule: cosine   # или cosine
+    alpha0: 0.1        # начальная сила преобразования (0..1)
+
+
+  align_motif: False
+  str_self_cond: False
+  state_dict_to_use: model_state_dict
+  deterministic: True
+  ckpt_path: rf_diffusion/model_weights/RFD_173.pt 
+  idealize_sidechain_outputs: False
+  inference.guidepost_xyz_as_design_bb: [True]
+
+  contig_as_guidepost: true
+  output_prefix: pipeline_outputs/debug_test_orient/run_test_orient_25
+  input_pdb: /home/domain/ipermyakov/progs/RFdiffusion2/test_orient/Fdu.a0.0_0025_xm5.0_yp5.0_zm1.0.pdb
+  seed_offset: 43
+  write_trajectory: true
+  write_trb_indep: true
+  write_trb_trajectory: true
+  num_designs: 1
+  design_startnum: 1
+  only_guidepost_positions: K205,K69,K39,K203
+  remove_guideposts_from_output: True
+  
+
+contigmap:
+  contigs:
+  - A1-25,8,A34-52,8,A61-101,14-25,A127-138_B139-161,17,B179-193,7,B202-232,K205,K69,K39,K203,11,B244-254_C1-12
+  contig_atoms: '{''K205'':''C,CA,O,N,CB,OG'',''K69'':''CE1,CD2,CG,NE2,ND1'',''K39'':''OD2,OD1,CG'',''K203'':''C,CA,O,N'',}'
+  substrate_mask: 'C1-12'  # опционально; формат как в contigs
+  has_termini:
+  - true
+  - true
+  - true
+
+idealization_metric_n_steps: 50 
+
+diffuser:
+  T: 50
+  trans:
+    sample_schedule: linear
+    exp_rate: 1
+  rots:
+    sample_schedule: normed_exp
+    exp_rate: 10
+
+

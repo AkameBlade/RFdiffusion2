@@ -9,10 +9,15 @@ inference:
   str_self_cond: False
   state_dict_to_use: model_state_dict
   deterministic: False
-  ckpt_path: REPO_ROOT/rf_diffusion/model_weights/RFD_140.pt
+  ckpt_path: REPO_ROOT/rf_diffusion/model_weights/RFD_173.pt
   idealize_sidechain_outputs: True
   write_trb_indep: True
   inference.guidepost_xyz_as_design_bb: [True]
+  guidepost_align:
+  active: True
+  schedule: linear   # или cosine
+  alpha0: 1.0        # начальная сила преобразования (0..1)
+  substrate_positions: 'A106,A166,A169,A193'  # опционально; формат как в contigs
 idealization_metric_n_steps: 50
 
 diffuser:

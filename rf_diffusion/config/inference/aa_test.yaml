@@ -1,0 +1,56 @@
+# Base inference Configuration.
+defaults:
+  - base
+
+guidepost_bonds: True
+
+inference:
+  guidepost_align:
+    active: True
+    schedule: linear   # или cosine
+    alpha0: 0.2        # начальная сила преобразования (0..1)
+  substrate_positions: 'C254-265'  # опционально; формат как в contigs
+
+
+  align_motif: False
+  str_self_cond: False
+  state_dict_to_use: model_state_dict
+  deterministic: True
+  ckpt_path: rf_diffusion/model_weights/RFD_173.pt 
+  idealize_sidechain_outputs: False
+  inference.guidepost_xyz_as_design_bb: [True]
+
+  contig_as_guidepost: true
+  output_prefix: pipeline_outputs/debug_test/run_test_abz_cond0_align4
+  input_pdb: pipeline_outputs/debug_test/input/test_in.pdb
+  seed_offset: 43
+  write_trajectory: true
+  write_trb_indep: true
+  write_trb_trajectory: true
+  num_designs: 1
+  design_startnum: 1
+  only_guidepost_positions: E238
+  remove_guideposts_from_output: True
+  
+
+contigmap:
+  contigs:
+  - A1-25,8,A34-52,8,A61-101,25,A127-138_B139-161,17,B179-193,7,B202-232,E177-177,E238-238,11,B244-254_C254-265
+  contig_atoms: null
+  has_termini:
+  - true
+  - true
+  - true
+
+idealization_metric_n_steps: 50
+
+diffuser:
+  T: 10
+  trans:
+    sample_schedule: linear
+    exp_rate: 1
+  rots:
+    sample_schedule: normed_exp
+    exp_rate: 10
+
+

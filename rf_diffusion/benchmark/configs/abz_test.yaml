@@ -1,0 +1,23 @@
+defaults:
+  - enzyme_bench_n41
+  - _self_
+
+in_proc: True
+sweep:
+  retries: 2
+  command_args: >
+    --config-name=aa
+    inference.deterministic=True
+    inference.ckpt_path=REPO_ROOT/rf_diffusion/model_weights/RFD_173.pt
+    inference.seed_offset=43
+  
+  num_per_condition: 1
+  num_per_job: 1
+  benchmark_json: open_source_demo.json
+
+  slurm:
+    p: gpu-bf
+    gres: gpu:1
+
+stop_step: sweep
+outdir: ${hydra:runtime.cwd}/pipeline_outputs/${now:%Y-%m-%d}_${now:%H-%M-%S}_open_source_demo

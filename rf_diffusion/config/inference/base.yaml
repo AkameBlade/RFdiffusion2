@@ -5,7 +5,7 @@ inference:
   num_designs: 10
   design_startnum: 0
   seed_offset: 0
-  ckpt_path: /net/scratch/ahern/se3_diffusion/training/fm_tip_resume_24/fm_tip_resume_242023-12-03_14:20:34.490797/rank_0/models/RFD_44.pt
+  ckpt_path: /home/domain/ipermyakov/progs/RFdiffusion2/rf_diffusion/model_weights/RFD_140.pt
   autogenerate_contigs: False
   old_symmetry: null
   recenter: True
@@ -83,6 +83,7 @@ contigmap:
   contig_atoms: null
   inpaint_str: null
   inpaint_seq: null
+  substrate_mask: null
   length: null
   shuffle: null
   has_termini: [True]
